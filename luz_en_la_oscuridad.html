@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Luz en la Oscuridad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Quicksand:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0b0c10;
+            font-family: 'Quicksand', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .title-font {
+            font-family: 'Cinzel', serif;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        /* Glassmorphism styling */
+        .glass-panel {
+            background: rgba(15, 17, 26, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .dialog-box {
+            background: linear-gradient(135deg, rgba(16, 20, 32, 0.92) 0%, rgba(8, 10, 18, 0.96) 100%);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 15px rgba(212, 175, 55, 0.05);
+        }
+
+        /* Golden Card Translucent Styles */
+        .golden-card {
+            background: linear-gradient(135deg, rgba(30, 25, 10, 0.95) 0%, rgba(15, 12, 5, 0.98) 100%);
+            border: 2px solid rgba(234, 179, 8, 0.6);
+            box-shadow: 0 0 35px rgba(234, 179, 8, 0.25), inset 0 0 20px rgba(250, 204, 21, 0.1);
+        }
+
+        /* Envelope triangular flap animation */
+        .envelope-flap {
+            transform-origin: top center;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .envelope-flap.open {
+            transform: rotateX(180deg);
+        }
+
+        /* Custom animations */
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        .pulse-glow {
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+        @keyframes floatAnim {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        .float-elem {
+            animation: floatAnim 2.5s infinite ease-in-out;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(212, 175, 55, 0.4);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-center items-center overflow-hidden select-none bg-black text-white">
+
+    <!-- Local Audio File Element -->
+    <audio id="bg-music" src="cancion.mp3" loop preload="auto"></audio>
+
+    <!-- Main Render Canvas -->
+    <div id="game-container" class="relative w-full h-full flex justify-center items-center overflow-hidden">
+        <canvas id="gameCanvas" class="w-full h-full absolute inset-0 z-0"></canvas>
+
+        <!-- Chapter Progress Bar (Top) -->
+        <div id="hud-bar" class="absolute top-4 left-1/2 -translate-x-1/2 z-10 glass-panel px-6 py-2 rounded-full flex items-center gap-4 transition-all duration-700 opacity-0 pointer-events-none">
+            <span id="chapter-badge" class="text-xs uppercase tracking-widest text-amber-400 font-semibold font-mono">Capítulo 1</span>
+            <div class="h-3 w-px bg-white/20"></div>
+            <span id="chapter-title" class="text-sm font-medium text-slate-200 title-font">La Práctica de Baile</span>
+        </div>
+
+        <!-- Audio toggle button -->
+        <button id="audio-btn" class="absolute top-4 right-4 z-20 glass-panel p-3 rounded-full hover:bg-white/10 transition-colors text-amber-300">
+            <svg id="sound-on-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+            <svg id="sound-off-icon" class="w-5 h-5 hidden text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+        </button>
+
+        <!-- Start Screen Overlay -->
+        <div id="start-screen" class="absolute inset-0 z-30 flex flex-col justify-center items-center bg-gradient-to-b from-slate-950/90 via-slate-900/95 to-black p-6 text-center transition-opacity duration-1000">
+            <div class="max-w-md flex flex-col items-center">
+                <div class="w-20 h-20 rounded-full border border-amber-400/30 flex items-center justify-center mb-6 pulse-glow bg-amber-500/10">
+                    <div class="w-10 h-10 rounded-full bg-amber-400/20 flex items-center justify-center">
+                        <span class="text-2xl">✨</span>
+                    </div>
+                </div>
+                <h1 class="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-100 title-font tracking-wide mb-3">
+                    Luz en la Oscuridad
+                </h1>
+                <p class="text-slate-300 text-sm md:text-base font-light mb-8 leading-relaxed">
+                    Una historia interactiva sobre el destino, los recuerdos, los errores y el amor incondicional que todo lo ilumina.
+                </p>
+                <button id="start-btn" class="px-8 py-3.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold tracking-wider uppercase text-sm shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all">
+                    Comenzar Historia
+                </button>
+                <span class="text-xs text-slate-500 mt-6 font-mono">Usa WASD / Flechas o Toca la pantalla para moverte</span>
+            </div>
+        </div>
+
+        <!-- Golden Transition Card Between Chapters -->
+        <div id="chapter-card-overlay" class="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-700 transform scale-95">
+            <div class="golden-card max-w-sm w-[88%] rounded-3xl p-8 text-center relative overflow-hidden flex flex-col items-center shadow-2xl">
+                <!-- Decorative Corner Ornaments -->
+                <div class="absolute top-3 left-3 text-amber-400/40 text-xs font-serif">✦</div>
+                <div class="absolute top-3 right-3 text-amber-400/40 text-xs font-serif">✦</div>
+                <div class="absolute bottom-3 left-3 text-amber-400/40 text-xs font-serif">✦</div>
+                <div class="absolute bottom-3 right-3 text-amber-400/40 text-xs font-serif">✦</div>
+
+                <div class="w-12 h-12 rounded-full border border-amber-400/40 bg-amber-500/10 flex items-center justify-center mb-4">
+                    <span id="trans-card-number" class="text-amber-300 font-bold title-font text-lg">I</span>
+                </div>
+
+                <span id="trans-card-badge" class="text-amber-400 font-mono text-xs uppercase tracking-widest mb-1">Capítulo Siguiente</span>
+                <h2 id="trans-card-title" class="text-2xl font-bold text-amber-100 title-font mb-4">La Gran Fiesta de 15</h2>
+                <div class="w-16 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent mb-6"></div>
+
+                <button id="trans-card-btn" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold uppercase tracking-wider text-xs shadow-lg shadow-amber-500/30 transition-all transform active:scale-95">
+                    Continuar
+                </button>
+            </div>
+        </div>
+
+        <!-- Dialogue Box Component -->
+        <div id="dialog-container" class="absolute bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-3xl z-20 dialog-box rounded-2xl p-4 md:p-6 transition-all duration-500 opacity-0 transform translate-y-6 pointer-events-none">
+            <div class="flex items-start gap-4">
+                <!-- Avatar portrait -->
+                <div class="relative flex-shrink-0">
+                    <canvas id="portraitCanvas" class="w-16 h-16 md:w-20 md:y-20 rounded-xl border border-amber-400/30 bg-slate-900/80 shadow-md"></canvas>
+                    <div id="speaker-badge" class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-amber-500/90 text-slate-950 font-bold text-[10px] tracking-wider uppercase whitespace-nowrap">
+                        Él
+                    </div>
+                </div>
+                <!-- Dialogue Text area -->
+                <div class="flex-grow flex flex-col justify-between min-h-[4rem]">
+                    <div>
+                        <div id="speaker-name" class="text-amber-300 font-semibold text-sm md:text-base title-font mb-1">
+                            Protagonista
+                        </div>
+                        <p id="dialog-text" class="text-slate-200 text-xs md:text-sm leading-relaxed font-light">
+                            ...
+                        </p>
+                    </div>
+                    <div class="self-end mt-2 flex items-center gap-2 text-xs text-amber-400/70 font-mono animate-pulse">
+                        <span>Haz clic para continuar</span>
+                        <span>►</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Action Prompt Overlay -->
+        <div id="action-prompt" class="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 float-elem opacity-0 pointer-events-none transition-all duration-300">
+            <div class="glass-panel px-5 py-2.5 rounded-full flex items-center gap-3 border-amber-400/40 text-amber-200 text-xs md:text-sm font-medium shadow-lg">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                <span id="action-prompt-text">Presiona ESPACIO o Toca para interactuar</span>
+            </div>
+        </div>
+
+        <!-- Interactive Rhythm / Dance / Hug Mini-game Overlay -->
+        <div id="minigame-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-500">
+            <div class="glass-panel p-6 rounded-2xl max-w-sm w-full text-center border-amber-400/30">
+                <h3 id="minigame-title" class="text-xl font-bold text-amber-300 title-font mb-2">Sigue el Ritmo</h3>
+                <p id="minigame-desc" class="text-xs text-slate-300 mb-6">Presiona el botón justo cuando el círculo encaje.</p>
+                
+                <div class="relative w-48 h-48 mx-auto mb-6 flex items-center justify-center">
+                    <div id="target-circle" class="absolute w-32 h-32 rounded-full border-2 border-dashed border-amber-400/60"></div>
+                    <div id="pulse-circle" class="absolute w-48 h-48 rounded-full border-2 border-amber-400 bg-amber-400/10"></div>
+                    <button id="minigame-action-btn" class="relative z-10 w-20 h-20 rounded-full bg-amber-500 text-slate-950 font-extrabold text-sm shadow-xl active:scale-90 transition-transform flex items-center justify-center">
+                        ¡RITMO!
+                    </button>
+                </div>
+
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden mb-2">
+                    <div id="minigame-progress" class="bg-gradient-to-r from-amber-500 to-amber-300 h-full w-0 transition-all duration-200"></div>
+                </div>
+                <div id="minigame-score-text" class="text-xs font-mono text-slate-400">Progreso: 0%</div>
+            </div>
+        </div>
+
+        <!-- FINAL GOLDEN ENVELOPE & LETTER MODAL -->
+        <div id="letter-overlay" class="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-lg opacity-0 pointer-events-none transition-all duration-1000 p-4">
+            
+            <!-- Golden Envelope Container -->
+            <div id="envelope-box" class="relative w-80 md:w-96 h-56 rounded-2xl golden-card flex flex-col items-center justify-center p-6 shadow-2xl transition-all">
+                
+                <!-- Triangular Flap Top -->
+                <div id="envelope-flap" class="envelope-flap absolute top-0 left-0 right-0 h-28 bg-gradient-to-b from-amber-600 via-amber-700 to-amber-900 border-b border-amber-400/50 [clip-path:polygon(0_0,100%_0,50%_100%)] z-20 flex justify-center pt-2">
+                    <div class="w-6 h-6 rounded-full bg-amber-400/30 border border-amber-300/60 flex items-center justify-center text-[10px] text-amber-200">✨</div>
+                </div>
+
+                <!-- Envelope Seal Button "Abrir" -->
+                <div id="open-envelope-btn-container" class="relative z-30 flex flex-col items-center gap-3">
+                    <div class="w-16 h-16 rounded-full bg-amber-500 border-2 border-amber-200 shadow-xl flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform" id="open-envelope-btn">
+                        <span class="text-slate-950 font-bold title-font text-sm uppercase">Abrir</span>
+                    </div>
+                </div>
+
+                <!-- Slide Up Hint Prompt -->
+                <div id="slide-hint" class="absolute -bottom-14 left-1/2 -translate-x-1/2 z-30 opacity-0 pointer-events-none transition-opacity duration-500 flex flex-col items-center gap-1 text-amber-300 text-xs font-mono animate-bounce">
+                    <span>▲ Desliza hacia arriba ▲</span>
+                </div>
+            </div>
+
+            <!-- Full Love Letter Parchment Container -->
+            <div id="letter-content-modal" class="absolute z-40 max-w-lg w-[92%] max-h-[85vh] overflow-y-auto golden-card rounded-3xl p-6 md:p-8 text-amber-100 shadow-2xl opacity-0 translate-y-12 pointer-events-none transition-all duration-1000 border-2 border-amber-400/60">
+                <div class="text-center mb-4">
+                    <span class="text-amber-400 text-2xl">💖</span>
+                    <h3 class="title-font text-amber-300 font-bold text-xl md:text-2xl mt-1">Para Mi Abejita</h3>
+                    <div class="w-24 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto mt-2"></div>
+                </div>
+
+                <div class="space-y-4 text-xs md:text-sm leading-relaxed font-light text-amber-100/90 whitespace-pre-line tracking-wide">
+"gracias por estar siempre a mi lado, por quedarte, por amarme, por ayudarme y por consolarme, gracias por ser tú.
+Para mi abejita
+Mi chefesita linda, amor de mis amores, te amo mucho, te amo tanto que me niego a volver a decepcionarte una vez mas, al contrario, me esforzaré por hacerte feliz cada dia mas, por sacarte una sonrisa, por ver esa alegria en tu rostro que tanto me ilumina.
+
+Eres tu, amada mia, mi motivacion a seguir, y si debo esperar 5 años para estar a tu lado, será un gusto esperar, porque cada minuto a tu lado es de los regalos mas hermosos que Dios me ha dado, y espero con ansias el momento en el que nos podamos volver a ver.
+
+Te amo de corazón, tu Jere 💗"
+                </div>
+
+                <div class="mt-8 text-center">
+                    <button id="final-continue-btn" class="px-8 py-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs uppercase tracking-widest shadow-lg shadow-amber-500/30 transition-all transform hover:scale-105 active:scale-95">
+                        Continuar ✨
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- FINAL SUNSET CINEMATIC OVERLAY -->
+        <div id="sunset-cinematic-ui" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 opacity-0 pointer-events-none transition-opacity duration-1000 flex flex-col items-center">
+            <div class="glass-panel px-6 py-3 rounded-full border-amber-400/40 text-center">
+                <p class="text-xs md:text-sm title-font text-amber-200">"Juntos hasta el final de cada atardecer..."</p>
+            </div>
+            <button onclick="location.reload()" class="mt-4 px-5 py-2 rounded-full bg-black/40 hover:bg-black/60 text-amber-300 border border-amber-400/30 text-[11px] uppercase tracking-wider transition-all backdrop-blur-md">
+                Volver al inicio
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Web Audio Synthesizer & Local Audio Track Manager
+         */
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.isMuted = false;
+                this.bgmTimer = null;
+                this.currentChapter = 1;
+                this.bgAudio = document.getElementById('bg-music');
+                this.hasLocalAudio = false;
+
+                this.notes = {
+                    chapter1: [261.63, 329.63, 392.00, 523.25, 440.00, 349.23],
+                    chapter2: [329.63, 392.00, 493.88, 587.33, 659.25, 523.25],
+                    chapter3: [130.81, 138.59, 146.83, 155.56, 110.00],
+                    chapter4: [261.63, 329.63, 392.00, 493.88, 523.25, 659.25, 783.99]
+                };
+            }
+
+            init() {
+                // Attempt to play local cancion.mp3
+                if (this.bgAudio) {
+                    this.bgAudio.volume = 0.6;
+                    const playPromise = this.bgAudio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            this.hasLocalAudio = true;
+                        }).catch(() => {
+                            this.hasLocalAudio = false;
+                        });
+                    }
+                }
+
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+            }
+
+            playNote(freq, type = 'sine', duration = 1.5, vol = 0.15) {
+                if (this.isMuted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+                    gain.gain.setValueAtTime(0, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
+            }
+
+            playSfx(type) {
+                if (this.isMuted || !this.ctx) return;
+                if (type === 'step') {
+                    this.playNote(120 + Math.random() * 30, 'triangle', 0.1, 0.02);
+                } else if (type === 'interact') {
+                    this.playNote(523.25, 'sine', 0.4, 0.1);
+                    setTimeout(() => this.playNote(659.25, 'sine', 0.5, 0.1), 80);
+                } else if (type === 'darkness') {
+                    this.playNote(70, 'sawtooth', 2.0, 0.2);
+                } else if (type === 'light') {
+                    this.playNote(523.25, 'sine', 1.0, 0.15);
+                    setTimeout(() => this.playNote(659.25, 'sine', 1.2, 0.15), 150);
+                    setTimeout(() => this.playNote(783.99, 'sine', 1.5, 0.2), 300);
+                }
+            }
+
+            startBgm(chapter) {
+                this.currentChapter = chapter;
+                if (this.hasLocalAudio) return; // Prioritize cancion.mp3 if available
+
+                if (this.bgmTimer) clearInterval(this.bgmTimer);
+
+                const playNextAmbientNote = () => {
+                    const list = this.notes[`chapter${this.currentChapter}`] || this.notes.chapter1;
+                    const note = list[Math.floor(Math.random() * list.length)];
+                    const isLow = Math.random() > 0.6;
+                    const type = this.currentChapter === 3 ? 'sawtooth' : (isLow ? 'triangle' : 'sine');
+                    const vol = this.currentChapter === 3 ? 0.06 : 0.12;
+
+                    this.playNote(note * (isLow ? 0.5 : 1), type, 2.5, vol);
+                };
+
+                playNextAmbientNote();
+                this.bgmTimer = setInterval(playNextAmbientNote, 1800);
+            }
+
+            toggleMute() {
+                this.isMuted = !this.isMuted;
+                if (this.bgAudio) {
+                    this.bgAudio.muted = this.isMuted;
+                }
+                return this.isMuted;
+            }
+        }
+
+        const audio = new SoundEngine();
+    </script>
+
+    <script>
+        /**
+         * Isometric 2.5D Renderer & Canvas Configuration
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const portraitCanvas = document.getElementById('portraitCanvas');
+        const pCtx = portraitCanvas.getContext('2d');
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            portraitCanvas.width = 120 * dpr;
+            portraitCanvas.height = 120 * dpr;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const TILE_WIDTH = 70;
+        const TILE_HEIGHT = 35;
+
+        function worldToScreen(wx, wy, wz = 0) {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2 - 40;
+            const sx = cx + (wx - wy) * (TILE_WIDTH / 2);
+            const sy = cy + (wx + wy) * (TILE_HEIGHT / 2) - wz;
+            return { x: sx, y: sy };
+        }
+
+        const state = {
+            chapter: 1,
+            substep: 0,
+            player: { x: 2, y: 2, z: 0, targetX: 2, targetY: 2, dir: 0, walking: false, animTime: 0 },
+            her: { x: 6, y: 6, z: 0, dir: 2, crying: false, embrace: false, aura: 0 },
+            interactable: null,
+            dialogIndex: 0,
+            isDialogueActive: false,
+            darknessRatio: 0,
+            particles: [],
+            lights: [],
+            chapterCompleted: false,
+            isSunsetCinematic: false,
+            sunsetFrame: 0
+        };
+
+        const CHAPTERS = {
+            1: {
+                badge: "Capítulo 1",
+                roman: "I",
+                title: "La Práctica de Baile",
+                mapWidth: 10,
+                mapHeight: 10,
+                dialogs: [
+                    { speaker: "Él", text: "El ambiente en el ensayo de los 15 años de Sora está lleno de risas... pero yo me siento un poco fuera de lugar.", portrait: "he_normal" },
+                    { speaker: "Ella", text: "¿Te cuesta seguir el ritmo del merengue? Tranquilo, a mí también me daba vergüenza al principio.", portrait: "she_happy" },
+                    { speaker: "Él", text: "Me habla con una sonrisa deslumbrante. Algo dentro de mí se ilumina al escuchar su voz.", portrait: "he_happy" },
+                    { speaker: "Ella", text: "Acompañémonos en la práctica. Así ninguno de los dos estará solo.", portrait: "she_happy" }
+                ],
+                prompt: "Acércate a Ella para practicar el vals juntos."
+            },
+            2: {
+                badge: "Capítulo 2",
+                roman: "II",
+                title: "La Gran Fiesta de 15",
+                mapWidth: 12,
+                mapHeight: 12,
+                dialogs: [
+                    { speaker: "Él", text: "El salón brilla con luces doradas y música elegante. Entre la gente, la veo... su vestido amarillo luce deslumbrante.", portrait: "he_happy" },
+                    { speaker: "Ella", text: "¡Llegaste! Pensé que no vendrías... Te estuve buscando entre los invitados.", portrait: "she_happy" },
+                    { speaker: "Narrador", text: "De pronto, abrumados por la nostalgia y los sentimientos intensos del momento, se acercan e interconectan sus miradas.", portrait: "he_normal" },
+                    { speaker: "Ella", text: "(Llorando emocionada) Gracias por estar aquí conmigo... no sabes lo importante que eres para mí.", portrait: "she_crying" },
+                    { speaker: "Él", text: "(La abraza fuertemente) Tranquila... yo también lloro de felicidad. Siempre te acompañaré.", portrait: "he_crying" }
+                ],
+                prompt: "Dale un abrazo sincero en medio del salón."
+            },
+            3: {
+                badge: "Capítulo 3",
+                roman: "III",
+                title: "El Error y la Oscuridad",
+                mapWidth: 10,
+                mapHeight: 10,
+                dialogs: [
+                    { speaker: "Él", text: "Cometí un gran error... Dije e hice cosas sin pensar y lastimé lo que más quería. La culpa pesa como un abismo.", portrait: "he_sad" },
+                    { speaker: "Él", text: "El mundo dorado brillante desaparece... Todo a mi alrededor se torna frío, oscuro e inerte.", portrait: "he_sad" },
+                    { speaker: "Ella", text: "Sé que te sientes culpable y que crees que todo se acabó... Pero no te voy a dejar caer solo en esa oscuridad.", portrait: "she_hopeful" }
+                ],
+                prompt: "Camina a través del abismo de la culpa hacia Ella."
+            },
+            4: {
+                badge: "Capítulo 4",
+                roman: "IV",
+                title: "Su Luz Hasta El Final",
+                mapWidth: 12,
+                mapHeight: 12,
+                dialogs: [
+                    { speaker: "Ella", text: "A pesar de todo, de tus fallos y de mis miedos... yo elijo quedarme a tu lado. Tu dolor también es mío.", portrait: "she_light" },
+                    { speaker: "Él", text: "Su luz dorada rompe las sombras. Su mano tibia toma la mía y disipa toda la angustia de mi pecho.", portrait: "he_happy" },
+                    { speaker: "Narrador", text: "Juntos, caminando tomados de la mano, descubren que el amor no es nunca ser perfectos, sino sostenerse incluso en la noche más oscura.", portrait: "she_light" }
+                ],
+                prompt: "Tómale la mano para caminar juntos hacia el horizonte radiante."
+            }
+        };
+
+        function addParticle(x, y, z, color, vx, vy, vz, life) {
+            state.particles.push({ x, y, z, color, vx, vy, vz, life, maxLife: life });
+        }
+
+        function updateParticles() {
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                const p = state.particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.z += p.vz;
+                p.life--;
+                if (p.life <= 0) {
+                    state.particles.splice(i, 1);
+                }
+            }
+        }
+
+        function renderParticles() {
+            state.particles.forEach(p => {
+                const pos = worldToScreen(p.x, p.y, p.z);
+                const alpha = p.life / p.maxLife;
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 2 + alpha * 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+        }
+    </script>
+
+    <script>
+        /**
+         * Characters & Sunset Cinematic Renderer
+         * STREAMING_CHUNK:Rendering romantic pier sunset scene with ocean waves and seagulls...
+         */
+        function drawCharacterSprite(ctx, scrX, scrY, type, frame, emotion = 'normal', aura = false) {
+            ctx.save();
+            ctx.translate(scrX, scrY);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.beginPath();
+            ctx.ellipse(0, 5, 14, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const walkOffset = Math.sin(frame * 0.3) * 3;
+            const bob = Math.abs(Math.sin(frame * 0.3)) * 2;
+
+            if (aura) {
+                const grad = ctx.createRadialGradient(0, -30, 5, 0, -30, 45);
+                grad.addColorStop(0, 'rgba(251, 191, 36, 0.6)');
+                grad.addColorStop(0.5, 'rgba(245, 158, 11, 0.25)');
+                grad.addColorStop(1, 'rgba(217, 119, 6, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, -30, 45, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (type === 'he') {
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(-6, -18 + bob, 5, 18 - walkOffset);
+                ctx.fillRect(1, -18 + bob, 5, 18 + walkOffset);
+
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(-7, -2 + bob - walkOffset, 6, 4);
+                ctx.fillRect(1, -2 + bob + walkOffset, 6, 4);
+
+                const shirtColor = state.chapter === 2 ? '#0f172a' : (state.chapter === 3 ? '#334155' : '#e2e8f0');
+                ctx.fillStyle = shirtColor;
+                ctx.beginPath();
+                ctx.roundRect(-9, -38 + bob, 18, 22, 4);
+                ctx.fill();
+
+                if (state.chapter === 2) {
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.fillRect(-1.5, -34 + bob, 3, 12);
+                }
+
+                ctx.fillStyle = shirtColor;
+                ctx.fillRect(-12, -36 + bob, 3, 16);
+                ctx.fillRect(9, -36 + bob, 3, 16);
+
+                ctx.fillStyle = '#fbcfe8';
+                ctx.beginPath();
+                ctx.arc(0, -46 + bob, 9, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#371b07';
+                ctx.beginPath();
+                ctx.arc(0, -49 + bob, 10, Math.PI, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(-9, -51 + bob, 18, 5);
+
+                ctx.fillStyle = '#1e293b';
+                if (emotion === 'crying' || emotion === 'sad') {
+                    ctx.fillRect(-4, -46 + bob, 2, 1);
+                    ctx.fillRect(2, -46 + bob, 2, 1);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(-3, -44 + bob, 1.5, 3);
+                } else {
+                    ctx.fillRect(-4, -47 + bob, 2, 3);
+                    ctx.fillRect(2, -47 + bob, 2, 3);
+                }
+
+            } else {
+                const caribSkin = '#b47747';
+                const dressColor = '#eab308';
+
+                ctx.fillStyle = dressColor;
+                ctx.beginPath();
+                ctx.moveTo(-5, -28 + bob);
+                ctx.lineTo(-15 + Math.sin(frame * 0.2) * 2, 0);
+                ctx.lineTo(15 - Math.sin(frame * 0.2) * 2, 0);
+                ctx.lineTo(5, -28 + bob);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.arc(0, -10 + bob, 3, 0, Math.PI * 2);
+                ctx.arc(-6, -5 + bob, 2, 0, Math.PI * 2);
+                ctx.arc(6, -6 + bob, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = dressColor;
+                ctx.beginPath();
+                ctx.roundRect(-7, -37 + bob, 14, 12, 3);
+                ctx.fill();
+
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(-7, -29 + bob, 14, 3);
+
+                ctx.fillStyle = caribSkin;
+                ctx.fillRect(-10, -35 + bob, 3, 14);
+                ctx.fillRect(7, -35 + bob, 3, 14);
+
+                ctx.fillStyle = caribSkin;
+                ctx.beginPath();
+                ctx.arc(0, -45 + bob, 8.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#261408';
+                ctx.beginPath();
+                ctx.arc(0, -48 + bob, 11, Math.PI * 0.8, Math.PI * 2.2);
+                ctx.fill();
+                ctx.fillRect(-11, -48 + bob, 4, 24);
+                ctx.fillRect(7, -48 + bob, 4, 24);
+
+                ctx.fillStyle = '#0f172a';
+                if (emotion === 'crying') {
+                    ctx.fillRect(-4, -45 + bob, 2, 1);
+                    ctx.fillRect(2, -45 + bob, 2, 1);
+                } else {
+                    ctx.fillRect(-4, -46 + bob, 2, 2.5);
+                    ctx.fillRect(2, -46 + bob, 2, 2.5);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // Render Sunset Pier Scene
+        function renderSunsetCinematic() {
+            const w = canvas.width;
+            const h = canvas.height;
+            state.sunsetFrame++;
+
+            // Sky Gradient (Warm Sunset: Purple -> Red/Orange -> Golden Yellow)
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.65);
+            skyGrad.addColorStop(0, '#2e1065');
+            skyGrad.addColorStop(0.35, '#7c2d12');
+            skyGrad.addColorStop(0.7, '#ea580c');
+            skyGrad.addColorStop(1, '#fde047');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, h * 0.65);
+
+            // Glowing Sun on Horizon
+            const sunY = h * 0.6;
+            const sunX = w * 0.5;
+            const sunGrad = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 120);
+            sunGrad.addColorStop(0, '#ffffff');
+            sunGrad.addColorStop(0.2, '#fef08a');
+            sunGrad.addColorStop(0.5, '#f97316');
+            sunGrad.addColorStop(1, 'rgba(249, 115, 22, 0)');
+            ctx.fillStyle = sunGrad;
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, 120, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ocean Water Gradient
+            const seaGrad = ctx.createLinearGradient(0, h * 0.65, 0, h);
+            seaGrad.addColorStop(0, '#c2410c');
+            seaGrad.addColorStop(0.3, '#7c2d12');
+            seaGrad.addColorStop(1, '#0f172a');
+            ctx.fillStyle = seaGrad;
+            ctx.fillRect(0, h * 0.65, w, h * 0.35);
+
+            // Sun Golden Reflection Waves on Sea
+            for (let y = h * 0.65; y < h; y += 8) {
+                const waveOffset = Math.sin(y * 0.05 + state.sunsetFrame * 0.04) * 15;
+                const width = (y - h * 0.65) * 1.8 + 60;
+                ctx.fillStyle = `rgba(254, 240, 138, ${Math.max(0, 0.6 - (y - h * 0.65) / (h * 0.35))})`;
+                ctx.fillRect(sunX - width / 2 + waveOffset, y, width, 3);
+            }
+
+            // Seagulls flying in distance
+            ctx.strokeStyle = 'rgba(254, 240, 138, 0.7)';
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 3; i++) {
+                const birdX = ((state.sunsetFrame * 0.8 + i * 180) % (w + 200)) - 100;
+                const birdY = h * 0.25 + Math.sin(state.sunsetFrame * 0.03 + i) * 12;
+                ctx.beginPath();
+                ctx.moveTo(birdX - 10, birdY + 3);
+                ctx.quadraticCurveTo(birdX - 5, birdY - 5, birdX, birdY);
+                ctx.quadraticCurveTo(birdX + 5, birdY - 5, birdX + 10, birdY + 3);
+                ctx.stroke();
+            }
+
+            // Wooden Pier Structure
+            const pierTop = h * 0.68;
+            const pierW = Math.min(w * 0.45, 380);
+            const pierX = w / 2 - pierW / 2;
+
+            // Pier Stilts
+            ctx.fillStyle = '#1c1917';
+            for (let px = pierX + 20; px < pierX + pierW; px += 60) {
+                ctx.fillRect(px, pierTop, 12, h - pierTop);
+            }
+
+            // Pier Deck Wooden Planks
+            ctx.fillStyle = '#292524';
+            ctx.fillRect(pierX, pierTop, pierW, 20);
+            ctx.fillStyle = '#44403c';
+            ctx.fillRect(pierX, pierTop, pierW, 4);
+
+            // Both Sitting Together Side-by-Side Edge of Pier
+            const coupleX = w / 2;
+            const coupleY = pierTop - 5;
+
+            // Protagonist ("Él") Sitting
+            ctx.fillStyle = '#0f172a'; // Trousers
+            ctx.fillRect(coupleX - 18, coupleY - 10, 12, 18);
+            ctx.fillStyle = '#e2e8f0'; // Shirt
+            ctx.fillRect(coupleX - 20, coupleY - 28, 14, 18);
+            ctx.fillStyle = '#fbcfe8'; // Skin
+            ctx.beginPath();
+            ctx.arc(coupleX - 13, coupleY - 34, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#371b07'; // Hair
+            ctx.beginPath();
+            ctx.arc(coupleX - 13, coupleY - 36, 8, Math.PI, Math.PI * 2);
+            ctx.fill();
+
+            // Ella Sitting in Yellow Dress
+            const caribSkin = '#b47747';
+            ctx.fillStyle = '#eab308'; // Yellow Dress
+            ctx.beginPath();
+            ctx.moveTo(coupleX + 2, coupleY - 26);
+            ctx.lineTo(coupleX - 4, coupleY + 12);
+            ctx.lineTo(coupleX + 22, coupleY + 12);
+            ctx.lineTo(coupleX + 16, coupleY - 26);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = caribSkin; // Head
+            ctx.beginPath();
+            ctx.arc(coupleX + 9, coupleY - 33, 6.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#261408'; // Hair
+            ctx.beginPath();
+            ctx.arc(coupleX + 9, coupleY - 35, 8, Math.PI * 0.8, Math.PI * 2.2);
+            ctx.fill();
+
+            // Legs dangling over pier edge
+            ctx.fillStyle = caribSkin;
+            ctx.fillRect(coupleX + 4, coupleY + 8, 4, 16);
+            ctx.fillRect(coupleX + 11, coupleY + 8, 4, 16);
+
+            ctx.fillStyle = '#fbcfe8';
+            ctx.fillRect(coupleX - 16, coupleY + 8, 4, 16);
+            ctx.fillRect(coupleX - 10, coupleY + 8, 4, 16);
+
+            // Floating Golden Lights
+            if (Math.random() < 0.4) {
+                const sparkX = coupleX + (Math.random() - 0.5) * 300;
+                const sparkY = pierTop - Math.random() * 200;
+                addParticle(sparkX / TILE_WIDTH, sparkY / TILE_HEIGHT, 0, '#fef08a', 0, -0.05, 0.05, 100);
+            }
+        }
+
+        function renderPortrait(type) {
+            pCtx.clearRect(0, 0, portraitCanvas.width, portraitCanvas.height);
+            pCtx.save();
+            pCtx.scale(portraitCanvas.width / 120, portraitCanvas.height / 120);
+
+            const bgGrad = pCtx.createRadialGradient(60, 60, 10, 60, 60, 60);
+            bgGrad.addColorStop(0, '#1e293b');
+            bgGrad.addColorStop(1, '#020617');
+            pCtx.fillStyle = bgGrad;
+            pCtx.fillRect(0, 0, 120, 120);
+
+            if (type.startsWith('he')) {
+                pCtx.fillStyle = '#fbcfe8';
+                pCtx.beginPath();
+                pCtx.arc(60, 65, 28, 0, Math.PI * 2);
+                pCtx.fill();
+
+                pCtx.fillStyle = '#371b07';
+                pCtx.beginPath();
+                pCtx.arc(60, 52, 32, Math.PI, Math.PI * 2);
+                pCtx.fill();
+
+                pCtx.fillStyle = '#0f172a';
+                if (type.includes('sad') || type.includes('crying')) {
+                    pCtx.fillRect(48, 62, 6, 2);
+                    pCtx.fillRect(66, 62, 6, 2);
+                    pCtx.fillStyle = '#38bdf8';
+                    pCtx.beginPath();
+                    pCtx.arc(50, 72, 3, 0, Math.PI * 2);
+                    pCtx.fill();
+                } else {
+                    pCtx.fillRect(48, 60, 6, 7);
+                    pCtx.fillRect(66, 60, 6, 7);
+                    pCtx.strokeStyle = '#0f172a';
+                    pCtx.lineWidth = 2;
+                    pCtx.beginPath();
+                    pCtx.arc(60, 70, 8, 0.1, Math.PI - 0.1);
+                    pCtx.stroke();
+                }
+            } else {
+                pCtx.fillStyle = '#b47747';
+                pCtx.beginPath();
+                pCtx.arc(60, 65, 26, 0, Math.PI * 2);
+                pCtx.fill();
+
+                pCtx.fillStyle = '#261408';
+                pCtx.beginPath();
+                pCtx.arc(60, 52, 31, Math.PI * 0.8, Math.PI * 2.2);
+                pCtx.fill();
+                pCtx.fillRect(28, 52, 12, 45);
+                pCtx.fillRect(80, 52, 12, 45);
+
+                pCtx.fillStyle = '#0f172a';
+                if (type.includes('crying')) {
+                    pCtx.fillRect(48, 62, 6, 2);
+                    pCtx.fillRect(66, 62, 6, 2);
+                    pCtx.fillStyle = '#38bdf8';
+                    pCtx.beginPath();
+                    pCtx.arc(50, 70, 3, 0, Math.PI * 2);
+                    pCtx.arc(70, 73, 3, 0, Math.PI * 2);
+                    pCtx.fill();
+                } else {
+                    pCtx.fillRect(48, 60, 6, 6);
+                    pCtx.fillRect(66, 60, 6, 6);
+                    pCtx.strokeStyle = '#0f172a';
+                    pCtx.lineWidth = 2;
+                    pCtx.beginPath();
+                    pCtx.arc(60, 72, 7, 0.1, Math.PI - 0.1);
+                    pCtx.stroke();
+                }
+            }
+            pCtx.restore();
+        }
+    </script>
+
+    <script>
+        /**
+         * Render Environments & Game Loops
+         */
+        function renderEnvironment(ch) {
+            const mapW = CHAPTERS[ch].mapWidth;
+            const mapH = CHAPTERS[ch].mapHeight;
+
+            for (let x = 0; x < mapW; x++) {
+                for (let y = 0; y < mapH; y++) {
+                    const pos = worldToScreen(x, y, 0);
+
+                    if (ch === 1) {
+                        const isEven = (x + y) % 2 === 0;
+                        ctx.fillStyle = isEven ? '#78350f' : '#92400e';
+                        drawIsoTile(pos.x, pos.y, TILE_WIDTH, TILE_HEIGHT);
+
+                        if (y === 0) {
+                            ctx.fillStyle = '#1e293b';
+                            drawIsoWallLeft(pos.x, pos.y, TILE_WIDTH, TILE_HEIGHT, 60);
+                            ctx.fillStyle = 'rgba(203, 213, 225, 0.25)';
+                            ctx.fillRect(pos.x - TILE_WIDTH/2 + 5, pos.y - 50, TILE_WIDTH - 10, 40);
+                        }
+                        if (x === 0) {
+                            ctx.fillStyle = '#0f172a';
+                            drawIsoWallRight(pos.x, pos.y, TILE_WIDTH, TILE_HEIGHT, 60);
+                        }
+
+                    } else if (ch === 2) {
+                        const isEven = (x + y) % 2 === 0;
+                        ctx.fillStyle = isEven ? '#1e1b4b' : '#312e81';
+                        drawIsoTile(pos.x, pos.y, TILE_WIDTH, TILE_HEIGHT);
+
+                        if ((x === 2 && y === 2) || (x === 8 && y === 2) || (x === 2 && y === 8)) {
+                            drawRoundPartyTable(pos.x, pos.y - 10);
+                        }
+
+                    } else if (ch === 3) {
+                        ctx.fillStyle = '#090a0f';
+                        drawIsoTile(pos.x, pos.y, TILE_WIDTH, TILE_HEIGHT);
+
+                        if ((x + y * 3) % 4 === 0) {
+                            ctx.strokeStyle = '#27272a';
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+                            ctx.moveTo(pos.x - 10, pos.y);
+                            ctx.lineTo(pos.x + 8, pos.y + 4);
+                            ctx.stroke();
+                        }
+
+                    } else if (ch === 4) {
+                        const distToHer = Math.hypot(x - state.her.x, y - state.her.y);
+                        const lightFactor = Math.max(0, 1 - distToHer / 7);
+
+                        const r = Math.floor(15 + lightFactor * 180);
+                        const g = Math.floor(23 + lightFactor * 140);
+                        const b = Math.floor(42 + lightFactor * 60);
+                        ctx.fillStyle = `rgb(${r},${g},${b})`;
+                        drawIsoTile(pos.x, pos.y, TILE_WIDTH, TILE_HEIGHT);
+                    }
+                }
+            }
+        }
+
+        function drawIsoTile(x, y, w, h) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w / 2, y + h / 2);
+            ctx.lineTo(x, y + h);
+            ctx.lineTo(x - w / 2, y + h / 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.stroke();
+        }
+
+        function drawIsoWallLeft(x, y, w, h, height) {
+            ctx.beginPath();
+            ctx.moveTo(x - w / 2, y + h / 2);
+            ctx.lineTo(x, y + h);
+            ctx.lineTo(x, y + h - height);
+            ctx.lineTo(x - w / 2, y + h / 2 - height);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawIsoWallRight(x, y, w, h, height) {
+            ctx.beginPath();
+            ctx.moveTo(x, y + h);
+            ctx.lineTo(x + w / 2, y + h / 2);
+            ctx.lineTo(x + w / 2, y + h / 2 - height);
+            ctx.lineTo(x, y + h - height);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawRoundPartyTable(x, y) {
+            ctx.fillStyle = '#d97706';
+            ctx.fillRect(x - 2, y, 4, 18);
+            ctx.fillStyle = '#f8fafc';
+            ctx.beginPath();
+            ctx.ellipse(x, y, 18, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#eab308';
+            ctx.beginPath();
+            ctx.arc(x, y - 4, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function update() {
+            if (state.isSunsetCinematic) return;
+
+            const p = state.player;
+            const speed = 0.08;
+            if (Math.hypot(p.targetX - p.x, p.targetY - p.y) > 0.05) {
+                p.x += (p.targetX - p.x) * speed;
+                p.y += (p.targetY - p.y) * speed;
+                p.walking = true;
+                p.animTime += 1;
+                if (Math.random() < 0.1) audio.playSfx('step');
+            } else {
+                p.walking = false;
+            }
+
+            if (state.chapter === 2 && Math.random() < 0.3) {
+                const colors = ['#f59e0b', '#eab308', '#8b5cf6', '#3b82f6'];
+                const rx = Math.random() * CHAPTERS[2].mapWidth;
+                const ry = Math.random() * CHAPTERS[2].mapHeight;
+                addParticle(rx, ry, 120, colors[Math.floor(Math.random()*colors.length)], 0, 0, -0.8, 140);
+            }
+
+            if (state.chapter === 3 && Math.random() < 0.4) {
+                const rx = Math.random() * CHAPTERS[3].mapWidth;
+                const ry = Math.random() * CHAPTERS[3].mapHeight;
+                addParticle(rx, ry, 0, '#27272a', (Math.random()-0.5)*0.05, (Math.random()-0.5)*0.05, 0.1, 80);
+            }
+
+            if (state.chapter === 4 && Math.random() < 0.6) {
+                const rx = state.her.x + (Math.random() - 0.5) * 2;
+                const ry = state.her.y + (Math.random() - 0.5) * 2;
+                addParticle(rx, ry, 10, '#fbbf24', (Math.random()-0.5)*0.02, (Math.random()-0.5)*0.02, 0.2, 90);
+            }
+
+            const distToHer = Math.hypot(p.x - state.her.x, p.y - state.her.y);
+            if (distToHer < 1.8 && !state.isDialogueActive && !state.chapterCompleted) {
+                showActionPrompt(CHAPTERS[state.chapter].prompt);
+            } else {
+                hideActionPrompt();
+            }
+
+            updateParticles();
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (state.isSunsetCinematic) {
+                renderSunsetCinematic();
+                return;
+            }
+
+            renderEnvironment(state.chapter);
+            renderParticles();
+
+            const herPos = worldToScreen(state.her.x, state.her.y, state.her.z);
+            const pPos = worldToScreen(state.player.x, state.player.y, state.player.z);
+
+            const isHerInFront = (state.her.x + state.her.y) > (state.player.x + state.player.y);
+
+            if (isHerInFront) {
+                drawCharacterSprite(ctx, pPos.x, pPos.y, 'he', state.player.animTime, state.chapter === 3 ? 'sad' : 'normal');
+                drawCharacterSprite(ctx, herPos.x, herPos.y, 'she', state.player.animTime, state.chapter === 2 ? 'crying' : 'normal', state.chapter === 4);
+            } else {
+                drawCharacterSprite(ctx, herPos.x, herPos.y, 'she', state.player.animTime, state.chapter === 2 ? 'crying' : 'normal', state.chapter === 4);
+                drawCharacterSprite(ctx, pPos.x, pPos.y, 'he', state.player.animTime, state.chapter === 3 ? 'sad' : 'normal');
+            }
+
+            if (Math.hypot(state.player.x - state.her.x, state.player.y - state.her.y) < 1.8) {
+                ctx.fillStyle = '#f59e0b';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.fillText("✨", herPos.x - 8, herPos.y - 65 + Math.sin(Date.now() * 0.005) * 4);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Dialogue Flow
+        function triggerDialogue() {
+            const chData = CHAPTERS[state.chapter];
+            state.isDialogueActive = true;
+            state.dialogIndex = 0;
+
+            document.getElementById('dialog-container').classList.remove('opacity-0', 'pointer-events-none', 'translate-y-6');
+            showNextSentence();
+            audio.playSfx('interact');
+        }
+
+        function showNextSentence() {
+            const chData = CHAPTERS[state.chapter];
+            if (state.dialogIndex >= chData.dialogs.length) {
+                document.getElementById('dialog-container').classList.add('opacity-0', 'pointer-events-none', 'translate-y-6');
+                state.isDialogueActive = false;
+
+                startChapterMinigame();
+                return;
+            }
+
+            const item = chData.dialogs[state.dialogIndex];
+            document.getElementById('speaker-name').innerText = item.speaker;
+            document.getElementById('speaker-badge').innerText = item.speaker;
+            document.getElementById('dialog-text').innerText = item.text;
+
+            renderPortrait(item.portrait);
+            state.dialogIndex++;
+            audio.playSfx('interact');
+        }
+
+        let minigameProgress = 0;
+        function startChapterMinigame() {
+            const overlay = document.getElementById('minigame-overlay');
+            const title = document.getElementById('minigame-title');
+            const desc = document.getElementById('minigame-desc');
+
+            minigameProgress = 0;
+            document.getElementById('minigame-progress').style.width = '0%';
+            document.getElementById('minigame-score-text').innerText = 'Progreso: 0%';
+
+            if (state.chapter === 1) {
+                title.innerText = "Sigue el Ritmo del Vals";
+                desc.innerText = "Haz clic en el botón en el momento indicado para coordinar los pasos de baile.";
+            } else if (state.chapter === 2) {
+                title.innerText = "Abrazo Emotivo";
+                desc.innerText = "Mantén presionado el ritmo para contener las lágrimas y acompañarla.";
+            } else if (state.chapter === 3) {
+                title.innerText = "Supera la Oscuridad";
+                desc.innerText = "Lucha contra el peso de la culpa y no te rindas.";
+            } else if (state.chapter === 4) {
+                title.innerText = "Unidos Hasta el Final";
+                desc.innerText = "Toma su mano e ilumina juntos el camino.";
+            }
+
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        document.getElementById('minigame-action-btn').addEventListener('click', () => {
+            minigameProgress += 25;
+            document.getElementById('minigame-progress').style.width = minigameProgress + '%';
+            document.getElementById('minigame-score-text').innerText = `Progreso: ${minigameProgress}%`;
+            audio.playSfx('interact');
+
+            if (minigameProgress >= 100) {
+                document.getElementById('minigame-overlay').classList.add('opacity-0', 'pointer-events-none');
+                
+                if (state.chapter < 4) {
+                    showChapterGoldenCard(state.chapter + 1);
+                } else {
+                    triggerFinalEnvelopeSequence();
+                }
+            }
+        });
+
+        function showChapterGoldenCard(nextCh) {
+            const cardOverlay = document.getElementById('chapter-card-overlay');
+            const nextData = CHAPTERS[nextCh];
+
+            document.getElementById('trans-card-number').innerText = nextData.roman;
+            document.getElementById('trans-card-badge').innerText = nextData.badge;
+            document.getElementById('trans-card-title').innerText = nextData.title;
+
+            cardOverlay.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+            cardOverlay.classList.add('scale-100');
+            audio.playSfx('light');
+        }
+
+        document.getElementById('trans-card-btn').addEventListener('click', () => {
+            const cardOverlay = document.getElementById('chapter-card-overlay');
+            cardOverlay.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+            advanceChapter();
+        });
+
+        function advanceChapter() {
+            state.chapter++;
+            state.player.x = 2;
+            state.player.y = 2;
+            state.player.targetX = 2;
+            state.player.targetY = 2;
+
+            document.getElementById('chapter-badge').innerText = CHAPTERS[state.chapter].badge;
+            document.getElementById('chapter-title').innerText = CHAPTERS[state.chapter].title;
+
+            if (state.chapter === 3) audio.playSfx('darkness');
+            if (state.chapter === 4) audio.playSfx('light');
+
+            audio.startBgm(state.chapter);
+        }
+
+        function triggerFinalEnvelopeSequence() {
+            const letterOverlay = document.getElementById('letter-overlay');
+            letterOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            audio.playSfx('light');
+        }
+
+        document.getElementById('open-envelope-btn').addEventListener('click', () => {
+            document.getElementById('open-envelope-btn-container').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('envelope-flap').classList.add('open');
+            audio.playSfx('interact');
+
+            setTimeout(() => {
+                const hint = document.getElementById('slide-hint');
+                hint.classList.remove('opacity-0', 'pointer-events-none');
+            }, 600);
+        });
+
+        let touchStartY = 0;
+        const envelopeBox = document.getElementById('envelope-box');
+
+        envelopeBox.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        });
+
+        envelopeBox.addEventListener('touchend', (e) => {
+            const touchEndY = e.changedTouches[0].clientY;
+            if (touchStartY - touchEndY > 40) {
+                revealLoveLetter();
+            }
+        });
+
+        envelopeBox.addEventListener('click', () => {
+            if (document.getElementById('envelope-flap').classList.contains('open')) {
+                revealLoveLetter();
+            }
+        });
+
+        function revealLoveLetter() {
+            document.getElementById('slide-hint').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('envelope-box').classList.add('opacity-0', 'scale-90', 'pointer-events-none');
+
+            setTimeout(() => {
+                const letterModal = document.getElementById('letter-content-modal');
+                letterModal.classList.remove('opacity-0', 'translate-y-12', 'pointer-events-none');
+                audio.playSfx('light');
+            }, 300);
+        }
+
+        // Final Button "Continuar" Event Listener to launch Sunset Cinematic
+        document.getElementById('final-continue-btn').addEventListener('click', () => {
+            document.getElementById('letter-overlay').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('hud-bar').classList.add('opacity-0', 'pointer-events-none');
+
+            state.isSunsetCinematic = true;
+            audio.playSfx('light');
+
+            setTimeout(() => {
+                document.getElementById('sunset-cinematic-ui').classList.remove('opacity-0', 'pointer-events-none');
+            }, 1200);
+        });
+
+        function showActionPrompt(text) {
+            const prompt = document.getElementById('action-prompt');
+            document.getElementById('action-prompt-text').innerText = text;
+            prompt.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function hideActionPrompt() {
+            document.getElementById('action-prompt').classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (state.isDialogueActive) {
+                if (e.key === ' ' || e.key === 'Enter') showNextSentence();
+                return;
+            }
+
+            const step = 1;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                state.player.targetY = Math.max(0, state.player.targetY - step);
+            } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                state.player.targetY = Math.min(CHAPTERS[state.chapter].mapHeight - 1, state.player.targetY + step);
+            } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                state.player.targetX = Math.max(0, state.player.targetX - step);
+            } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                state.player.targetX = Math.min(CHAPTERS[state.chapter].mapWidth - 1, state.player.targetX + step);
+            } else if (e.key === ' ' || e.key === 'Enter') {
+                const distToHer = Math.hypot(state.player.x - state.her.x, state.player.y - state.her.y);
+                if (distToHer < 1.8) triggerDialogue();
+            }
+        });
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if (state.isDialogueActive) {
+                showNextSentence();
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const touchX = e.clientX - rect.left;
+            const touchY = e.clientY - rect.top;
+
+            const distToHer = Math.hypot(state.player.x - state.her.x, state.player.y - state.her.y);
+            if (distToHer < 1.8) {
+                triggerDialogue();
+                return;
+            }
+
+            const mapW = CHAPTERS[state.chapter].mapWidth;
+            const mapH = CHAPTERS[state.chapter].mapHeight;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2 - 40;
+
+            const dx = (touchX - cx) / (TILE_WIDTH / 2);
+            const dy = (touchY - cy) / (TILE_HEIGHT / 2);
+
+            const targetWx = Math.round((dx + dy) / 2);
+            const targetWy = Math.round((dy - dx) / 2);
+
+            if (targetWx >= 0 && targetWx < mapW && targetWy >= 0 && targetWy < mapH) {
+                state.player.targetX = targetWx;
+                state.player.targetY = targetWy;
+            }
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            audio.init();
+            audio.startBgm(1);
+
+            document.getElementById('start-screen').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('hud-bar').classList.remove('opacity-0', 'pointer-events-none');
+
+            gameLoop();
+        });
+
+        document.getElementById('audio-btn').addEventListener('click', () => {
+            const isMuted = audio.toggleMute();
+            document.getElementById('sound-on-icon').classList.toggle('hidden', isMuted);
+            document.getElementById('sound-off-icon').classList.toggle('hidden', !isMuted);
+        });
+    </script>
+</body>
+</html>
